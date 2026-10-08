@@ -1,0 +1,32 @@
+name: Sync Konichiwa Projects
+
+on:
+  schedule:
+    # Runs hourly (cron jobs run at most once every 5 minutes; hourly keeps API calls low)
+    - cron: "0 * * * *"
+  workflow_dispatch: # Manual trigger button in GitHub UI
+
+env:
+  KONICHIWA_API_URL: https://konichiwa-five.vercel.app/api/projects
+
+jobs:
+  sync-repos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install axios
+        run: npm install axios@1.8.4
+
+      - name: Find and process repos with topic:konichiwa
+        run: node scripts/sync-conichiwa.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONICHIWA_URL: https://konichiwa-five.vercel.app
+        continue-on-error: true
