@@ -3,6 +3,10 @@ import prisma from "@/lib/prisma";
 
 export const prerender = false;
 
+// The hourly sync job is the only bulk writer and the dialog writes on demand, so these two
+// numbers are the whole staleness budget.
+const READ_CACHE = "public, s-maxage=60, stale-while-revalidate=600";
+
 export const GET: APIRoute = async ({ url }) => {
   try {
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
@@ -27,7 +31,7 @@ export const GET: APIRoute = async ({ url }) => {
         totalPages,
         currentPage: page,
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": READ_CACHE } }
     );
   } catch (error: unknown) {
     console.error("Failed to fetch projects:", error);
