@@ -10,7 +10,9 @@ import { ProjectCard } from "./ProjectCard";
 import { PaginationBar } from "./PaginationBar";
 import { AddProjectDialog } from "./AddProjectDialog";
 import type { Project, ProjectsResponse } from "@/lib/types";
-import { Loader2, Plus, Sparkles, AlertCircle } from "lucide-react";
+import { Loader2, Plus, AlertCircle } from "lucide-react";
+
+const PAGE_SIZE = 6;
 
 // Fallback seed projects matching the reference UI if DB is freshly created or empty
 const DEFAULT_PROJECTS: Project[] = [
@@ -73,14 +75,33 @@ const queryClient = new QueryClient({
   },
 });
 
+// The POST response carries the row it wrote, so the cache can be updated from it. Refetching
+// instead would read the edge-cached GET, which can predate this write and make the new project
+// disappear from the grid until that copy expires.
+function applyWrite(
+  current: ProjectsResponse | undefined,
+  written: Project,
+  created: boolean
+): ProjectsResponse | undefined {
+  if (!current) return undefined;
+  if (!created) {
+    return { ...current, projects: current.projects.map((p) => (p.id === written.id ? written : p)) };
+  }
+  const projects = [written, ...current.projects.filter((p) => p.id !== written.id)].slice(0, PAGE_SIZE);
+  const total = current.total + 1;
+  return { ...current, projects, total, totalPages: Math.ceil(total / PAGE_SIZE) || 1 };
+}
+
 function PortfolioView() {
   const [page, setPage] = useState(1);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
-  const { data, isLoading, isError, error, refetch } = useQuery<ProjectsResponse>({
+  const { data, isLoading, isError, error } = useQuery<ProjectsResponse>({
     queryKey: ["projects", page],
+    retry: 1,
+    retryDelay: 500,
     queryFn: async () => {
-      const res = await fetch(`/api/projects?page=${page}&limit=6`);
+      const res = await fetch(`/api/projects?page=${page}&limit=${PAGE_SIZE}`);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData?.details || "Failed to load projects");
@@ -98,12 +119,17 @@ function PortfolioView() {
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData?.details || "Failed to save project");
+        throw new Error(errData?.error || "Failed to save project");
       }
-      return res.json();
+      return res.json() as Promise<{ project: Project; created: boolean }>;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    onSuccess: (result) => {
+      queryClient.setQueryData<ProjectsResponse>(["projects", 1], (current) =>
+        applyWrite(current, result.project, result.created)
+      );
+      // refetchType "none" marks the other pages stale so they reload when opened, without
+      // refetching the page the visitor is looking at.
+      queryClient.invalidateQueries({ queryKey: ["projects"], refetchType: "none" });
       setPage(1);
     },
   });
@@ -112,7 +138,8 @@ function PortfolioView() {
   const isDbEmpty = !isLoading && !isError && data?.projects?.length === 0;
   const usingFallback = isError || isDbEmpty;
   const displayProjects = usingFallback ? DEFAULT_PROJECTS : data?.projects || [];
-  const totalPages = usingFallback ? 3 : data?.totalPages || 1;
+  const fallbackPages = Math.ceil(DEFAULT_PROJECTS.length / PAGE_SIZE);
+  const totalPages = usingFallback ? fallbackPages : data?.totalPages || 1;
   const projectCount = data?.total !== undefined ? data.total : (isError ? DEFAULT_PROJECTS.length : 0);
 
   return (
@@ -125,7 +152,10 @@ function PortfolioView() {
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <div>
               <span>MongoDB status: </span>
-              <span className="font-mono">{error instanceof Error ? error.message : "Not connected"}</span>.
+              <span className="font-mono">
+                {import.meta.env.DEV ? (error instanceof Error ? error.message : "Not connected") : "Unavailable"}
+              </span>
+              <span>. </span>
               <span className="ml-1 text-neutral-600">Showing preview templates below. Set `DATABASE_URL` in .env to connect your database.</span>
             </div>
           </div>
