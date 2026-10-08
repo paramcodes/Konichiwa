@@ -29,12 +29,13 @@ export const GET: APIRoute = async ({ url }) => {
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to fetch projects:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({
         error: "Failed to fetch projects from database",
-        details: error?.message,
+        details: message,
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
@@ -53,6 +54,29 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
+    // Check if project with this githubUrl already exists
+    const existingProject = githubUrl
+      ? await prisma.project.findFirst({
+          where: { githubUrl: githubUrl?.trim() }
+        })
+      : null;
+
+    if (existingProject) {
+      const project = await prisma.project.update({
+        where: { id: existingProject.id },
+        data: {
+          name: name.trim(),
+          description: description.trim(),
+          techStack: Array.isArray(techStack) ? techStack.filter(Boolean) : [],
+          projectUrl: projectUrl?.trim() || null,
+        },
+      });
+      return new Response(JSON.stringify({ success: true, project, updated: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
     const project = await prisma.project.create({
       data: {
         name: name.trim(),
@@ -63,16 +87,17 @@ export const POST: APIRoute = async ({ request }) => {
       },
     });
 
-    return new Response(JSON.stringify({ success: true, project }), {
+    return new Response(JSON.stringify({ success: true, project, created: true }), {
       status: 201,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to create project:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({
         error: "Failed to create project in database",
-        details: error?.message,
+        details: message,
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

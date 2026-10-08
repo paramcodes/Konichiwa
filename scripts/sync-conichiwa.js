@@ -1,9 +1,9 @@
 // Sync repos with topic "konichiwa" into the Konichiwa DB.
 //
 // 1. Search GitHub for repos with topic:konichiwa (paginated).
-// 2. For each repo, fetch metadata: name, description, homepage, html_url.
+// 2. For each repo, fetch metadata: name, description, homepage, html_url, topics, language.
 // 3. POST each to the Konichiwa API endpoint.
-// 4. Skip repos already in the DB (API dedups by githubUrl).
+// 4. API handles deduplication / updates based on githubUrl.
 
 import axios from "axios";
 
@@ -42,7 +42,7 @@ async function searchRepos() {
 async function main() {
   console.log(`Searching GitHub for repos with topic:konichiwa...`);
   const repos = await searchRepos();
-  console.log(`Found ${repos.length} repos`);
+  console.log(`Found ${repos.length} repo(s) with topic 'konichiwa'`);
 
   let created = 0;
   let updated = 0;
@@ -50,28 +50,44 @@ async function main() {
 
   for (const repo of repos) {
     const name = repo.name;
-    const description = repo.description || "";
+    const description = repo.description?.trim() || `Portfolio project ${name} tagged with konichiwa`;
     const githubUrl = repo.html_url;
-    const projectUrl = repo.homepage || null;
+    const projectUrl = repo.homepage?.trim() || null;
+
+    // Collect techStack from repo topics (excluding konichiwa) and language
+    const topics = Array.isArray(repo.topics)
+      ? repo.topics.filter((t) => t && t.toLowerCase() !== "konichiwa")
+      : [];
+    if (repo.language && !topics.includes(repo.language)) {
+      topics.unshift(repo.language);
+    }
 
     if (!name) continue;
+
+    console.log(`Syncing '${name}':`, { description, githubUrl, projectUrl, topics });
 
     try {
       const res = await axios.post(`${API_URL}/api/projects`, {
         name,
         description,
-        techStack: [],
+        techStack: topics,
         githubUrl,
         projectUrl,
       });
 
-      if (res.data.created) created++;
-      else if (res.data.updated) updated++;
-      else console.log(`  - ${name}: ${JSON.stringify(res.data)}`);
+      if (res.data.created) {
+        console.log(`  ✓ Created: ${name}`);
+        created++;
+      } else if (res.data.updated) {
+        console.log(`  ✓ Updated: ${name}`);
+        updated++;
+      } else {
+        console.log(`  ✓ Synced: ${name} (${JSON.stringify(res.data)})`);
+      }
     } catch (err) {
       failed++;
-      const msg = err.response?.data?.details || err.message;
-      console.error(`  - ${name}: failed (${msg})`);
+      const msg = err.response?.data?.details || err.response?.data?.error || err.message;
+      console.error(`  ✗ Failed '${name}': ${msg}`);
     }
   }
 
