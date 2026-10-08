@@ -4,10 +4,10 @@ import { GithubIcon } from "@/components/icons/GithubIcon";
 
 interface NavbarProps {
   onOpenAddModal: () => void;
-  githubStars?: number;
+  projectCount?: number;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenAddModal, githubStars = 206 }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenAddModal, projectCount = 0 }) => {
   return (
     <header className="max-w-6xl mx-auto px-4 pt-6 pb-4">
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-neutral-200/70 px-5 py-3 flex items-center justify-between shadow-xs">
@@ -39,13 +39,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAddModal, githubStars = 20
         {/* Right: GitHub Stars & Add Button */}
         <div className="flex items-center gap-3">
           <a
-            href="https://github.com"
+            href="https://github.com/topics/konichiwa"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 text-sm font-semibold transition"
+            title="Projects tagged with konichiwa"
           >
             <GithubIcon className="w-4 h-4 text-neutral-900" />
-            <span>{githubStars}</span>
+            <span>{projectCount}</span>
           </a>
           <button
             onClick={onOpenAddModal}

@@ -113,11 +113,11 @@ function PortfolioView() {
   const usingFallback = isError || isDbEmpty;
   const displayProjects = usingFallback ? DEFAULT_PROJECTS : data?.projects || [];
   const totalPages = usingFallback ? 3 : data?.totalPages || 1;
+  const projectCount = data?.total !== undefined ? data.total : (isError ? DEFAULT_PROJECTS.length : 0);
 
   return (
     <div className="min-h-screen bg-[#f7f7f8] pb-16">
-      <Navbar onOpenAddModal={() => setIsAddOpen(true)} />
-
+      <Navbar onOpenAddModal={() => setIsAddOpen(true)} projectCount={projectCount} />
       {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 mt-2">
         {isError && (

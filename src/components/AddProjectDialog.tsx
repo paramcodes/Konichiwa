@@ -85,7 +85,7 @@ export const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
     }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-neutral-900/40 backdrop-blur-xs z-50 animate-in fade-in" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-3xl p-7 shadow-2xl z-50 border border-neutral-100 focus:outline-none max-h-[90vh] overflow-y-auto">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-3xl p-7 shadow-2xl z-50 border border-neutral-100 focus:outline-none max-h-[90vh] overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex items-center justify-between pb-4">
             <Dialog.Title className="text-xl font-bold text-neutral-900 tracking-tight">
               Add Project
